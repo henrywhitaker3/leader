@@ -1,18 +1,6 @@
-/crog.yaml
-
-build/bin
-dist/
-
 # Go workspace file
 go.work
 
-.argo-zombies.yaml
-
-charts/argo-zombies/values.test.yaml
 .vscode/settings.json
 
-internal/metadata/metadata.json
-
-.env
-
-chart/charts/
+main/
