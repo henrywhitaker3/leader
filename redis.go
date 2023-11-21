@@ -9,6 +9,10 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+var (
+	_ Locker = &RedisLocker{}
+)
+
 type RedisLocker struct {
 	redis *redis.Client
 	name  string
@@ -48,6 +52,21 @@ func (r *RedisLocker) GetLock(ctx context.Context) (*Lock, error) {
 		return nil, err
 	}
 	return lock, nil
+}
+
+func (r *RedisLocker) ReleaseLock(ctx context.Context) error {
+	lock, err := r.GetLock(ctx)
+	if err != nil {
+		return err
+	}
+	if lock.Instance != r.id {
+		// The lock is not ours, do nothing
+		return nil
+	}
+	if out := r.redis.Del(ctx, r.getKey()); out.Err() != nil {
+		return err
+	}
+	return nil
 }
 
 func (r *RedisLocker) GetId() string {

@@ -10,6 +10,7 @@ import (
 type Locker interface {
 	ObtainLock(context.Context) (*Lock, error)
 	RenewLock(context.Context) (*Lock, error)
+	ReleaseLock(context.Context) error
 	GetLock(context.Context) (*Lock, error)
 	GetId() string
 }
