@@ -3,7 +3,6 @@ package leader
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -24,7 +23,7 @@ func NewRedisLocker(redis *redis.Client) *RedisLocker {
 
 func (r *RedisLocker) ObtainLock(ctx context.Context, name string, instance string) (*Lock, error) {
 	lock := NewLock(instance)
-	if err := r.Redis.Set(ctx, r.getKey(name), lock, time.Second*20); err.Err() != nil {
+	if err := r.Redis.Set(ctx, r.getKey(name), lock, 0); err.Err() != nil {
 		return nil, err.Err()
 	}
 	return lock, nil
