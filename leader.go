@@ -25,6 +25,7 @@ type LeaderManager struct {
 	OnError    func(instance string, err error)
 
 	previousLock *Lock
+	isLeader     bool
 }
 
 func NewLeaderManager(name string, l Locker) *LeaderManager {
@@ -65,6 +66,7 @@ func (m *LeaderManager) run(ctx context.Context) {
 	}
 
 	m.previousLock = lock
+	m.isLeader = (lock.Instance == m.Instance)
 }
 
 func (m *LeaderManager) AttemptLock(ctx context.Context) (*Lock, error) {
@@ -78,7 +80,7 @@ func (m *LeaderManager) AttemptLock(ctx context.Context) (*Lock, error) {
 			m.OnError(m.Instance, err)
 		}
 
-		return nil, err
+		return lock, err
 	}
 
 	if lock.Instance == m.Instance {
@@ -108,13 +110,6 @@ func (m *LeaderManager) obtainLock(ctx context.Context) (*Lock, error) {
 	return lock, nil
 }
 
-func (m *LeaderManager) IsLeader() (bool, error) {
-	lock, err := m.Locker.GetLock(context.Background(), m.Name)
-	if err != nil {
-		if errors.Is(err, ErrNoLock) {
-			return false, nil
-		}
-		return false, err
-	}
-	return lock.Instance == m.Instance, nil
+func (m *LeaderManager) IsLeader() bool {
+	return m.isLeader
 }

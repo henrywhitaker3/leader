@@ -213,3 +213,37 @@ func TestItTakesOverTheLockWhenTheCurrentLockHasExpired(t *testing.T) {
 	assert.False(t, onOustingCalled)
 	assert.False(t, onErrorCalled)
 }
+
+func TestItSetsIsLeaderCorrectlyAfterRun(t *testing.T) {
+	now = func() time.Time {
+		fakeTime, _ := time.Parse(time.RFC3339, "2023-11-21T15:04:05Z")
+		return fakeTime
+	}
+	client, mock := redismock.NewClientMock()
+
+	mock.ExpectGet("bongo-leader").SetVal(`{"Instance":"2","Expires":"2023-11-21T15:06:00Z"}`)
+
+	leader := &LeaderManager{
+		Name:     "bongo",
+		Instance: "1",
+		Locker:   NewRedisLocker(client),
+		OnError: func(instance string, err error) {
+			fmt.Println(err)
+		},
+	}
+
+	leader.run(context.Background())
+
+	assert.False(t, leader.IsLeader())
+
+	mock.ExpectGet("bongo-leader").SetVal(`{"Instance":"1","Expires":"2023-11-21T15:06:00Z"}`)
+	mock.ExpectGet("bongo-leader").SetVal(`{"Instance":"1","Expires":"2023-11-21T15:06:00Z"}`)
+	mock.ExpectSet("bongo-leader", &Lock{
+		Instance: "1",
+		Expires:  now().Add(time.Second * 15),
+	}, 0).SetVal("OK")
+
+	leader.run(context.Background())
+
+	assert.True(t, leader.IsLeader())
+}
