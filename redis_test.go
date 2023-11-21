@@ -53,3 +53,53 @@ func TestItRetirevesTheLock(t *testing.T) {
 		Expires:  now().Add(time.Second * 15),
 	}, lock)
 }
+
+func TestItErrorsWhenRenewingSomeoneElsesLock(t *testing.T) {
+	now = func() time.Time {
+		fakeTime, _ := time.Parse(time.RFC3339, "2023-11-21T15:04:05Z")
+		return fakeTime
+	}
+	client, mock := redismock.NewClientMock()
+	mock.ExpectGet("leader-leader").SetVal(`{"Instance":"bingo","Expires":"2023-11-21T15:04:20Z"}`)
+
+	redis := NewRedisLocker("leader", client)
+
+	_, err := redis.RenewLock(context.Background(), "bongo")
+	assert.ErrorIs(t, err, ErrRenewNotOurLock)
+}
+
+func TestItErrorsWhenRenewingAMissingLock(t *testing.T) {
+	now = func() time.Time {
+		fakeTime, _ := time.Parse(time.RFC3339, "2023-11-21T15:04:05Z")
+		return fakeTime
+	}
+	client, mock := redismock.NewClientMock()
+	mock.ExpectGet("leader-leader").RedisNil()
+
+	redis := NewRedisLocker("leader", client)
+
+	_, err := redis.RenewLock(context.Background(), "bongo")
+	assert.ErrorIs(t, err, ErrNoLock)
+}
+
+func TestItRenewsALock(t *testing.T) {
+	now = func() time.Time {
+		fakeTime, _ := time.Parse(time.RFC3339, "2023-11-21T15:04:05Z")
+		return fakeTime
+	}
+	client, mock := redismock.NewClientMock()
+	mock.ExpectGet("leader-leader").SetVal(`{"Instance":"bongo","Expires":"2023-11-21T15:04:00Z"}`)
+	mock.ExpectSet("leader-leader", &Lock{
+		Instance: "bongo",
+		Expires:  now().Add(time.Second * 15),
+	}, 0).SetVal("OK")
+
+	redis := NewRedisLocker("leader", client)
+
+	lock, err := redis.RenewLock(context.Background(), "bongo")
+	assert.Nil(t, err)
+	assert.Equal(t, lock, &Lock{
+		Instance: "bongo",
+		Expires:  now().Add(time.Second * 15),
+	})
+}

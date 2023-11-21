@@ -32,6 +32,13 @@ func (r *RedisLocker) ObtainLock(ctx context.Context, instance string) (*Lock, e
 }
 
 func (r *RedisLocker) RenewLock(ctx context.Context, instance string) (*Lock, error) {
+	lock, err := r.GetLock(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if lock.Instance != instance {
+		return nil, ErrRenewNotOurLock
+	}
 	return r.ObtainLock(ctx, instance)
 }
 
