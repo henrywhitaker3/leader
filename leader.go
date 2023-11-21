@@ -46,6 +46,7 @@ func (m *LeaderManager) Run(ctx context.Context) {
 
 		select {
 		case <-m.close:
+		case <-ctx.Done():
 			return
 		default:
 			continue
