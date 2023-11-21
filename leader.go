@@ -41,6 +41,7 @@ func (m *LeaderManager) Run(ctx context.Context) {
 		m.run(ctx)
 		select {
 		case <-ctx.Done():
+			m.Locker.ReleaseLock(ctx, m.Name, m.Instance)
 			return
 		case <-time.After(time.Second * 10):
 			continue
