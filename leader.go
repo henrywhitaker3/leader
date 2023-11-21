@@ -37,24 +37,7 @@ func NewLeaderManager(name string, l Locker) *LeaderManager {
 
 func (m *LeaderManager) Run(ctx context.Context) {
 	for {
-		lock, err := m.AttemptLock(ctx)
-		if err != nil && lock == nil {
-			if m.OnError != nil {
-				m.OnError(m.Instance, err)
-			}
-			continue
-		}
-
-		if errors.Is(err, ErrLockExists) {
-			if m.previousLock != nil {
-				if m.previousLock.Instance == m.Instance && lock.Instance != m.Instance && m.OnOusting != nil {
-					m.OnOusting(m.Instance)
-				}
-			}
-		}
-
-		m.previousLock = lock
-
+		m.run(ctx)
 		select {
 		case <-ctx.Done():
 			return
@@ -62,6 +45,26 @@ func (m *LeaderManager) Run(ctx context.Context) {
 			continue
 		}
 	}
+}
+
+func (m *LeaderManager) run(ctx context.Context) {
+	lock, err := m.AttemptLock(ctx)
+	if err != nil && lock == nil {
+		if m.OnError != nil {
+			m.OnError(m.Instance, err)
+		}
+		return
+	}
+
+	if errors.Is(err, ErrLockExists) {
+		if m.previousLock != nil {
+			if m.previousLock.Instance == m.Instance && lock.Instance != m.Instance && m.OnOusting != nil {
+				m.OnOusting(m.Instance)
+			}
+		}
+	}
+
+	m.previousLock = lock
 }
 
 func (m *LeaderManager) AttemptLock(ctx context.Context) (*Lock, error) {
