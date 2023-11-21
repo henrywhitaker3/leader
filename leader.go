@@ -3,7 +3,6 @@ package leader
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,85 +16,107 @@ type Locker interface {
 }
 
 type LeaderManager struct {
-	name     string
-	instance string
-	locker   Locker
-	close    chan struct{}
+	Name       string
+	Instance   string
+	Locker     Locker
+	OnElection func(instance string)
+	OnOusting  func(instance string)
+	OnRenewal  func(instance string)
+	OnError    func(instance string, err error)
+
+	previousLock *Lock
 }
 
 func NewLeaderManager(name string, l Locker) *LeaderManager {
 	return &LeaderManager{
-		name:     name,
-		instance: uuid.NewString(),
-		locker:   l,
-		close:    make(chan struct{}),
+		Name:     name,
+		Instance: uuid.NewString(),
+		Locker:   l,
 	}
 }
 
 func (m *LeaderManager) Run(ctx context.Context) {
 	for {
-		// Try to get a lock
-		if _, err := m.AttemptLock(ctx); err != nil {
-			if errors.Is(err, ErrLockExists) {
-				time.Sleep(time.Second * 10)
-				continue
+		lock, err := m.AttemptLock(ctx)
+		if err != nil && lock == nil {
+			if m.OnError != nil {
+				m.OnError(m.Instance, err)
 			}
-			fmt.Printf("[%s] %s\n", m.instance, err.Error())
-			time.Sleep(time.Second * 10)
+			continue
 		}
 
+		if errors.Is(err, ErrLockExists) {
+			if m.previousLock != nil {
+				if m.previousLock.Instance == m.Instance && lock.Instance != m.Instance && m.OnOusting != nil {
+					m.OnOusting(m.Instance)
+				}
+			}
+		}
+
+		m.previousLock = lock
+
 		select {
-		case <-m.close:
 		case <-ctx.Done():
 			return
-		default:
+		case <-time.After(time.Second * 10):
 			continue
 		}
 	}
 }
 
 func (m *LeaderManager) AttemptLock(ctx context.Context) (*Lock, error) {
-	lock, err := m.locker.GetLock(ctx)
+	lock, err := m.Locker.GetLock(ctx)
 	if err != nil {
 		if errors.Is(err, ErrNoLock) {
-			fmt.Printf("[%s] no lock exists, obtaining\n", m.instance)
-			return m.locker.ObtainLock(ctx, m.instance)
+			return m.obtainLock(ctx)
 		}
+
+		if m.OnError != nil {
+			m.OnError(m.Instance, err)
+		}
+
 		return nil, err
 	}
 
 	if lock.IsValid() {
-		return nil, ErrLockExists
+		return lock, ErrLockExists
 	}
 
 	if !lock.IsValid() {
-		fmt.Printf("[%s] lock expired\n", m.instance)
-		if lock.Instance == m.instance {
-			fmt.Printf("[%s] renewing lock\n", m.instance)
-			return m.locker.RenewLock(ctx, m.instance)
+		if lock.Instance == m.Instance {
+			if m.OnRenewal != nil {
+				m.OnRenewal(m.Instance)
+			}
+			return m.Locker.RenewLock(ctx, m.Instance)
 		}
 
-		fmt.Printf("[%s] obtaining lock\n", m.instance)
-		return m.locker.ObtainLock(ctx, m.instance)
+		return m.obtainLock(ctx)
 	}
 
-	return nil, ErrDidntObtain
+	return lock, ErrDidntObtain
 }
 
-// Stop the leader manager
-func (m *LeaderManager) Stop() {
-	fmt.Printf("[%s] stopping, releasing lock\n", m.instance)
-	m.locker.ReleaseLock(context.Background(), m.instance)
-	close(m.close)
+func (m *LeaderManager) obtainLock(ctx context.Context) (*Lock, error) {
+	lock, err := m.Locker.ObtainLock(ctx, m.Instance)
+
+	if err != nil && m.OnError != nil {
+		m.OnError(m.Instance, err)
+		return lock, err
+	}
+	if m.OnElection != nil {
+		m.OnElection(m.Instance)
+	}
+
+	return lock, nil
 }
 
 func (m *LeaderManager) IsLeader() (bool, error) {
-	lock, err := m.locker.GetLock(context.Background())
+	lock, err := m.Locker.GetLock(context.Background())
 	if err != nil {
 		if errors.Is(err, ErrNoLock) {
 			return false, nil
 		}
 		return false, err
 	}
-	return lock.Instance == m.instance, nil
+	return lock.Instance == m.Instance, nil
 }
