@@ -24,7 +24,7 @@ func main() {
 			fmt.Printf("[%s] - renewed\n", instance)
 		},
 		OnError: func(instance string, err error) {
-			fmt.Printf("[%s] - %s", instance, err.Error())
+			fmt.Printf("[%s] - error - %s", instance, err.Error())
 		},
 	}
 
