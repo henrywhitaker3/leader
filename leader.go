@@ -106,7 +106,7 @@ func (m *LeaderManager) obtainLock(ctx context.Context) (*Lock, error) {
 	lock, err := m.Locker.ObtainLock(ctx, m.Name, m.Instance)
 
 	if err != nil {
-		if m.OnError != nil {
+		if m.OnError != nil && !errors.Is(err, ErrLockExists) {
 			m.OnError(m.Instance, err)
 		}
 		return lock, err

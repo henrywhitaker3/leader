@@ -248,3 +248,26 @@ func TestItSetsIsLeaderCorrectlyAfterRun(t *testing.T) {
 
 	assert.True(t, leader.IsLeader())
 }
+
+func TestItBehavesCorrectlyWhenSettingNXThatExists(t *testing.T) {
+	now = func() time.Time {
+		fakeTime, _ := time.Parse(time.RFC3339, "2023-11-21T15:04:05Z")
+		return fakeTime
+	}
+	client, mock := redismock.NewClientMock()
+
+	leader := &LeaderManager{
+		Name:     "bongo",
+		Instance: "1",
+		Locker:   NewRedisLocker(client),
+	}
+
+	mock.ExpectSetNX("bongo-leader", &Lock{
+		Instance: "1",
+		Expires:  now().Add(time.Second * 15),
+	}, time.Second*15).SetVal(false)
+
+	_, err := leader.obtainLock(context.Background())
+
+	assert.ErrorIs(t, err, ErrLockExists)
+}
