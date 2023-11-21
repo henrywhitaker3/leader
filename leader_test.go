@@ -158,8 +158,7 @@ func TestItCallsOnOustedWhenAnotherInstanceTakesOverTheLock(t *testing.T) {
 	assert.False(t, onErrorCalled)
 
 	onElectionCalled = false
-	mock.ExpectGet("bongo-leader").SetVal(`{"Instance":"2","Expires":"2023-11-21T15:20:00Z"}`)
-	mock.ExpectGet("bongo-leader").SetVal(`{"Instance":"2","Expires":"2023-11-21T15:20:00Z"}`)
+	mock.ExpectGet("bongo-leader").SetVal(`{"Instance":"2","Expires":"2023-11-21T15:25:00Z"}`)
 
 	leader.run(context.Background())
 

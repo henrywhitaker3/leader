@@ -19,7 +19,7 @@ func NewLock(instance string) *Lock {
 
 // Determines if the lock has already expired
 func (l *Lock) IsValid() bool {
-	return time.Now().Before(l.Expires)
+	return now().Before(l.Expires)
 }
 
 func (l Lock) MarshalBinary() ([]byte, error) {
