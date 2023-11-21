@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -16,20 +15,18 @@ var (
 type RedisLocker struct {
 	redis *redis.Client
 	name  string
-	id    string
 }
 
 func NewRedisLocker(name string, redis *redis.Client) *RedisLocker {
 	return &RedisLocker{
 		redis: redis,
 		name:  name,
-		id:    uuid.NewString(),
 	}
 }
 
-func (r *RedisLocker) ObtainLock(ctx context.Context) (*Lock, error) {
+func (r *RedisLocker) ObtainLock(ctx context.Context, instance string) (*Lock, error) {
 	lock := &Lock{
-		Instance: r.id,
+		Instance: instance,
 		Expires:  time.Now().Add(time.Second * 15),
 	}
 	if err := r.redis.Set(ctx, r.getKey(), lock, 0); err.Err() != nil {
@@ -38,8 +35,8 @@ func (r *RedisLocker) ObtainLock(ctx context.Context) (*Lock, error) {
 	return lock, nil
 }
 
-func (r *RedisLocker) RenewLock(ctx context.Context) (*Lock, error) {
-	return r.ObtainLock(ctx)
+func (r *RedisLocker) RenewLock(ctx context.Context, instance string) (*Lock, error) {
+	return r.ObtainLock(ctx, instance)
 }
 
 func (r *RedisLocker) GetLock(ctx context.Context) (*Lock, error) {
@@ -54,12 +51,12 @@ func (r *RedisLocker) GetLock(ctx context.Context) (*Lock, error) {
 	return lock, nil
 }
 
-func (r *RedisLocker) ReleaseLock(ctx context.Context) error {
+func (r *RedisLocker) ReleaseLock(ctx context.Context, instance string) error {
 	lock, err := r.GetLock(ctx)
 	if err != nil {
 		return err
 	}
-	if lock.Instance != r.id {
+	if lock.Instance != instance {
 		// The lock is not ours, do nothing
 		return nil
 	}
@@ -67,10 +64,6 @@ func (r *RedisLocker) ReleaseLock(ctx context.Context) error {
 		return err
 	}
 	return nil
-}
-
-func (r *RedisLocker) GetId() string {
-	return r.id
 }
 
 func (r *RedisLocker) getKey() string {
