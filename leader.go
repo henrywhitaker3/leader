@@ -80,6 +80,8 @@ func (m *LeaderManager) AttemptLock(ctx context.Context) (*Lock, error) {
 
 // Stop the leader manager
 func (m *LeaderManager) Stop() {
+	fmt.Printf("[%s] stopping, releasing lock\n", m.locker.GetId())
+	m.locker.ReleaseLock(context.Background())
 	close(m.close)
 }
 
