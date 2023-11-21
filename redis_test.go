@@ -25,10 +25,10 @@ func TestItSetsALockInRedisOnObtain(t *testing.T) {
 		return fakeTime
 	}
 	client, mock := redismock.NewClientMock()
-	mock.ExpectSet("leader-leader", &Lock{
+	mock.ExpectSetNX("leader-leader", &Lock{
 		Instance: "bongo",
 		Expires:  now().Add(time.Second * 15),
-	}, 0).SetVal("OK")
+	}, time.Second*15).SetVal(true)
 
 	redis := NewRedisLocker(client)
 	lock, err := redis.ObtainLock(context.Background(), "leader", "bongo")
@@ -88,11 +88,11 @@ func TestItRenewsALock(t *testing.T) {
 		return fakeTime
 	}
 	client, mock := redismock.NewClientMock()
-	mock.ExpectGet("leader-leader").SetVal(`{"Instance":"bongo","Expires":"2023-11-21T15:04:00Z"}`)
+	mock.ExpectGet("leader-leader").SetVal(`{"Instance":"bongo","Expires":"2023-11-21T15:04:20Z"}`)
 	mock.ExpectSet("leader-leader", &Lock{
 		Instance: "bongo",
 		Expires:  now().Add(time.Second * 15),
-	}, 0).SetVal("OK")
+	}, time.Second*15).SetVal("OK")
 
 	redis := NewRedisLocker(client)
 

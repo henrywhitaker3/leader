@@ -12,6 +12,7 @@ type Locker interface {
 	ObtainLock(ctx context.Context, name string, instance string) (*Lock, error)
 	RenewLock(ctx context.Context, name string, instance string) (*Lock, error)
 	ReleaseLock(ctx context.Context, name string, instance string) error
+	ClearLock(ctx context.Context, name string) error
 	GetLock(ctx context.Context, name string) (*Lock, error)
 }
 
@@ -94,15 +95,21 @@ func (m *LeaderManager) AttemptLock(ctx context.Context) (*Lock, error) {
 	if lock.IsValid() {
 		return lock, ErrLockExists
 	}
+	// The lock currently there is invalid, clear it and get a new one
+	if err := m.Locker.ClearLock(ctx, m.Name); err != nil {
+		return nil, err
+	}
 	return m.obtainLock(ctx)
 }
 
 func (m *LeaderManager) obtainLock(ctx context.Context) (*Lock, error) {
 	lock, err := m.Locker.ObtainLock(ctx, m.Name, m.Instance)
 
-	if err != nil && m.OnError != nil {
-		m.OnError(m.Instance, err)
-		return lock, err
+	if err != nil {
+		if m.OnError != nil {
+			m.OnError(m.Instance, err)
+			return lock, err
+		}
 	}
 	if m.OnElection != nil {
 		m.OnElection(m.Instance)

@@ -17,10 +17,10 @@ func TestItElectsALeaderWhenThereIsNoLock(t *testing.T) {
 	}
 	client, mock := redismock.NewClientMock()
 	mock.ExpectGet("bongo-leader").RedisNil()
-	mock.ExpectSet("bongo-leader", &Lock{
+	mock.ExpectSetNX("bongo-leader", &Lock{
 		Instance: "1",
 		Expires:  now().Add(time.Second * 15),
-	}, 0).SetVal("OK")
+	}, time.Second*15).SetVal(true)
 
 	onElectionCalled := false
 	onRenewalCalled := false
@@ -61,10 +61,10 @@ func TestItRenewsItsOwnLock(t *testing.T) {
 	}
 	client, mock := redismock.NewClientMock()
 	mock.ExpectGet("bongo-leader").RedisNil()
-	mock.ExpectSet("bongo-leader", &Lock{
+	mock.ExpectSetNX("bongo-leader", &Lock{
 		Instance: "1",
 		Expires:  now().Add(time.Second * 15),
-	}, 0).SetVal("OK")
+	}, time.Second*15).SetVal(true)
 
 	onElectionCalled := false
 	onRenewalCalled := false
@@ -99,12 +99,12 @@ func TestItRenewsItsOwnLock(t *testing.T) {
 	assert.False(t, onErrorCalled)
 
 	onElectionCalled = false
-	mock.ExpectGet("bongo-leader").SetVal(`{"Instance":"1","Expires":"2023-11-21T15:04:00Z"}`)
-	mock.ExpectGet("bongo-leader").SetVal(`{"Instance":"1","Expires":"2023-11-21T15:04:00Z"}`)
+	mock.ExpectGet("bongo-leader").SetVal(`{"Instance":"1","Expires":"2023-11-21T15:04:20Z"}`)
+	mock.ExpectGet("bongo-leader").SetVal(`{"Instance":"1","Expires":"2023-11-21T15:04:20Z"}`)
 	mock.ExpectSet("bongo-leader", &Lock{
 		Instance: "1",
 		Expires:  now().Add(time.Second * 15),
-	}, 0).SetVal("OK")
+	}, time.Second*15).SetVal("OK")
 	leader.run(context.Background())
 
 	assert.False(t, onElectionCalled)
@@ -120,10 +120,10 @@ func TestItCallsOnOustedWhenAnotherInstanceTakesOverTheLock(t *testing.T) {
 	}
 	client, mock := redismock.NewClientMock()
 	mock.ExpectGet("bongo-leader").RedisNil()
-	mock.ExpectSet("bongo-leader", &Lock{
+	mock.ExpectSetNX("bongo-leader", &Lock{
 		Instance: "1",
 		Expires:  now().Add(time.Second * 15),
-	}, 0).SetVal("OK")
+	}, time.Second*15).SetVal(true)
 
 	onElectionCalled := false
 	onRenewalCalled := false
@@ -201,10 +201,11 @@ func TestItTakesOverTheLockWhenTheCurrentLockHasExpired(t *testing.T) {
 	}
 
 	mock.ExpectGet("bongo-leader").SetVal(`{"Instance":"2","Expires":"2023-11-21T15:03:00Z"}`)
-	mock.ExpectSet("bongo-leader", &Lock{
+	mock.ExpectDel("bongo-leader").SetVal(1)
+	mock.ExpectSetNX("bongo-leader", &Lock{
 		Instance: "1",
 		Expires:  now().Add(time.Second * 15),
-	}, 0).SetVal("OK")
+	}, time.Second*15).SetVal(true)
 
 	leader.run(context.Background())
 
@@ -241,7 +242,7 @@ func TestItSetsIsLeaderCorrectlyAfterRun(t *testing.T) {
 	mock.ExpectSet("bongo-leader", &Lock{
 		Instance: "1",
 		Expires:  now().Add(time.Second * 15),
-	}, 0).SetVal("OK")
+	}, time.Second*15).SetVal("OK")
 
 	leader.run(context.Background())
 

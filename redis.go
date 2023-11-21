@@ -3,6 +3,7 @@ package leader
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -23,8 +24,12 @@ func NewRedisLocker(redis *redis.Client) *RedisLocker {
 
 func (r *RedisLocker) ObtainLock(ctx context.Context, name string, instance string) (*Lock, error) {
 	lock := NewLock(instance)
-	if err := r.Redis.Set(ctx, r.getKey(name), lock, 0); err.Err() != nil {
-		return nil, err.Err()
+	res := r.Redis.SetNX(ctx, r.getKey(name), lock, time.Second*15)
+	if res.Err() != nil {
+		return nil, res.Err()
+	}
+	if !res.Val() {
+		return lock, ErrLockExists
 	}
 	return lock, nil
 }
@@ -37,7 +42,11 @@ func (r *RedisLocker) RenewLock(ctx context.Context, name string, instance strin
 	if lock.Instance != instance {
 		return nil, ErrRenewNotOurLock
 	}
-	return r.ObtainLock(ctx, name, instance)
+	lock = NewLock(instance)
+	if res := r.Redis.Set(ctx, r.getKey(name), lock, time.Second*15); res.Err() != nil {
+		return nil, res.Err()
+	}
+	return lock, nil
 }
 
 func (r *RedisLocker) GetLock(ctx context.Context, name string) (*Lock, error) {
@@ -63,6 +72,13 @@ func (r *RedisLocker) ReleaseLock(ctx context.Context, name string, instance str
 	}
 	if out := r.Redis.Del(ctx, r.getKey(name)); out.Err() != nil {
 		return err
+	}
+	return nil
+}
+
+func (r *RedisLocker) ClearLock(ctx context.Context, name string) error {
+	if out := r.Redis.Del(ctx, r.getKey(name)); out.Err() != nil && out.Err() != redis.Nil {
+		return out.Err()
 	}
 	return nil
 }
