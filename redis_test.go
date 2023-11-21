@@ -13,8 +13,8 @@ func TestItErrorsWhenThereIsNoLock(t *testing.T) {
 	client, mock := redismock.NewClientMock()
 	mock.ExpectGet("leader-leader").RedisNil()
 
-	redis := NewRedisLocker("leader", client)
-	lock, err := redis.GetLock(context.Background())
+	redis := NewRedisLocker(client)
+	lock, err := redis.GetLock(context.Background(), "leader")
 	assert.Nil(t, lock)
 	assert.ErrorIs(t, err, ErrNoLock)
 }
@@ -30,8 +30,8 @@ func TestItSetsALockInRedisOnObtain(t *testing.T) {
 		Expires:  now().Add(time.Second * 15),
 	}, 0).SetVal("OK")
 
-	redis := NewRedisLocker("leader", client)
-	lock, err := redis.ObtainLock(context.Background(), "bongo")
+	redis := NewRedisLocker(client)
+	lock, err := redis.ObtainLock(context.Background(), "leader", "bongo")
 	assert.NotNil(t, lock)
 	assert.Nil(t, err)
 }
@@ -44,9 +44,9 @@ func TestItRetirevesTheLock(t *testing.T) {
 	client, mock := redismock.NewClientMock()
 	mock.ExpectGet("leader-leader").SetVal(`{"Instance":"bongo","Expires":"2023-11-21T15:04:20Z"}`)
 
-	redis := NewRedisLocker("leader", client)
+	redis := NewRedisLocker(client)
 
-	lock, err := redis.GetLock(context.Background())
+	lock, err := redis.GetLock(context.Background(), "leader")
 	assert.Nil(t, err)
 	assert.Equal(t, &Lock{
 		Instance: "bongo",
@@ -62,9 +62,9 @@ func TestItErrorsWhenRenewingSomeoneElsesLock(t *testing.T) {
 	client, mock := redismock.NewClientMock()
 	mock.ExpectGet("leader-leader").SetVal(`{"Instance":"bingo","Expires":"2023-11-21T15:04:20Z"}`)
 
-	redis := NewRedisLocker("leader", client)
+	redis := NewRedisLocker(client)
 
-	_, err := redis.RenewLock(context.Background(), "bongo")
+	_, err := redis.RenewLock(context.Background(), "leader", "bongo")
 	assert.ErrorIs(t, err, ErrRenewNotOurLock)
 }
 
@@ -76,9 +76,9 @@ func TestItErrorsWhenRenewingAMissingLock(t *testing.T) {
 	client, mock := redismock.NewClientMock()
 	mock.ExpectGet("leader-leader").RedisNil()
 
-	redis := NewRedisLocker("leader", client)
+	redis := NewRedisLocker(client)
 
-	_, err := redis.RenewLock(context.Background(), "bongo")
+	_, err := redis.RenewLock(context.Background(), "leader", "bongo")
 	assert.ErrorIs(t, err, ErrNoLock)
 }
 
@@ -94,9 +94,9 @@ func TestItRenewsALock(t *testing.T) {
 		Expires:  now().Add(time.Second * 15),
 	}, 0).SetVal("OK")
 
-	redis := NewRedisLocker("leader", client)
+	redis := NewRedisLocker(client)
 
-	lock, err := redis.RenewLock(context.Background(), "bongo")
+	lock, err := redis.RenewLock(context.Background(), "leader", "bongo")
 	assert.Nil(t, err)
 	assert.Equal(t, lock, &Lock{
 		Instance: "bongo",

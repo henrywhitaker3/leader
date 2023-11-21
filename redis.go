@@ -12,38 +12,36 @@ var (
 )
 
 type RedisLocker struct {
-	redis *redis.Client
-	name  string
+	Redis *redis.Client
 }
 
-func NewRedisLocker(name string, redis *redis.Client) *RedisLocker {
+func NewRedisLocker(redis *redis.Client) *RedisLocker {
 	return &RedisLocker{
-		redis: redis,
-		name:  name,
+		Redis: redis,
 	}
 }
 
-func (r *RedisLocker) ObtainLock(ctx context.Context, instance string) (*Lock, error) {
+func (r *RedisLocker) ObtainLock(ctx context.Context, name string, instance string) (*Lock, error) {
 	lock := NewLock(instance)
-	if err := r.redis.Set(ctx, r.getKey(), lock, 0); err.Err() != nil {
+	if err := r.Redis.Set(ctx, r.getKey(name), lock, 0); err.Err() != nil {
 		return nil, err.Err()
 	}
 	return lock, nil
 }
 
-func (r *RedisLocker) RenewLock(ctx context.Context, instance string) (*Lock, error) {
-	lock, err := r.GetLock(ctx)
+func (r *RedisLocker) RenewLock(ctx context.Context, name string, instance string) (*Lock, error) {
+	lock, err := r.GetLock(ctx, name)
 	if err != nil {
 		return nil, err
 	}
 	if lock.Instance != instance {
 		return nil, ErrRenewNotOurLock
 	}
-	return r.ObtainLock(ctx, instance)
+	return r.ObtainLock(ctx, name, instance)
 }
 
-func (r *RedisLocker) GetLock(ctx context.Context) (*Lock, error) {
-	out := r.redis.Get(ctx, r.getKey())
+func (r *RedisLocker) GetLock(ctx context.Context, name string) (*Lock, error) {
+	out := r.Redis.Get(ctx, r.getKey(name))
 	if out.Err() == redis.Nil {
 		return nil, ErrNoLock
 	}
@@ -54,8 +52,8 @@ func (r *RedisLocker) GetLock(ctx context.Context) (*Lock, error) {
 	return lock, nil
 }
 
-func (r *RedisLocker) ReleaseLock(ctx context.Context, instance string) error {
-	lock, err := r.GetLock(ctx)
+func (r *RedisLocker) ReleaseLock(ctx context.Context, name string, instance string) error {
+	lock, err := r.GetLock(ctx, name)
 	if err != nil {
 		return err
 	}
@@ -63,12 +61,12 @@ func (r *RedisLocker) ReleaseLock(ctx context.Context, instance string) error {
 		// The lock is not ours, do nothing
 		return nil
 	}
-	if out := r.redis.Del(ctx, r.getKey()); out.Err() != nil {
+	if out := r.Redis.Del(ctx, r.getKey(name)); out.Err() != nil {
 		return err
 	}
 	return nil
 }
 
-func (r *RedisLocker) getKey() string {
-	return fmt.Sprintf("%s-leader", r.name)
+func (r *RedisLocker) getKey(name string) string {
+	return fmt.Sprintf("%s-leader", name)
 }

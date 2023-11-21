@@ -13,7 +13,7 @@ func main() {
 	leader := &leader.LeaderManager{
 		Name:     "bongo",
 		Instance: uuid.NewString(),
-		Locker:   leader.NewRedisLocker("bongo", redis.NewClient(&redis.Options{Addr: "127.0.0.1:6379"})),
+		Locker:   leader.NewRedisLocker(redis.NewClient(&redis.Options{Addr: "127.0.0.1:6379"})),
 		OnElection: func(instance string) {
 			fmt.Printf("[%s] - elected\n", instance)
 		},

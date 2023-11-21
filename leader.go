@@ -9,10 +9,10 @@ import (
 )
 
 type Locker interface {
-	ObtainLock(ctx context.Context, instance string) (*Lock, error)
-	RenewLock(ctx context.Context, instance string) (*Lock, error)
-	ReleaseLock(ctx context.Context, instance string) error
-	GetLock(context.Context) (*Lock, error)
+	ObtainLock(ctx context.Context, name string, instance string) (*Lock, error)
+	RenewLock(ctx context.Context, name string, instance string) (*Lock, error)
+	ReleaseLock(ctx context.Context, name string, instance string) error
+	GetLock(ctx context.Context, name string) (*Lock, error)
 }
 
 type LeaderManager struct {
@@ -68,7 +68,7 @@ func (m *LeaderManager) run(ctx context.Context) {
 }
 
 func (m *LeaderManager) AttemptLock(ctx context.Context) (*Lock, error) {
-	lock, err := m.Locker.GetLock(ctx)
+	lock, err := m.Locker.GetLock(ctx, m.Name)
 	if err != nil {
 		if errors.Is(err, ErrNoLock) {
 			return m.obtainLock(ctx)
@@ -85,7 +85,7 @@ func (m *LeaderManager) AttemptLock(ctx context.Context) (*Lock, error) {
 		if m.OnRenewal != nil {
 			m.OnRenewal(m.Instance)
 		}
-		return m.Locker.RenewLock(ctx, m.Instance)
+		return m.Locker.RenewLock(ctx, m.Name, m.Instance)
 	}
 
 	if lock.IsValid() {
@@ -95,7 +95,7 @@ func (m *LeaderManager) AttemptLock(ctx context.Context) (*Lock, error) {
 }
 
 func (m *LeaderManager) obtainLock(ctx context.Context) (*Lock, error) {
-	lock, err := m.Locker.ObtainLock(ctx, m.Instance)
+	lock, err := m.Locker.ObtainLock(ctx, m.Name, m.Instance)
 
 	if err != nil && m.OnError != nil {
 		m.OnError(m.Instance, err)
@@ -109,7 +109,7 @@ func (m *LeaderManager) obtainLock(ctx context.Context) (*Lock, error) {
 }
 
 func (m *LeaderManager) IsLeader() (bool, error) {
-	lock, err := m.Locker.GetLock(context.Background())
+	lock, err := m.Locker.GetLock(context.Background(), m.Name)
 	if err != nil {
 		if errors.Is(err, ErrNoLock) {
 			return false, nil
