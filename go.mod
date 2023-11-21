@@ -1,6 +1,6 @@
 module github.com/henrywhitaker3/leader
 
-go 1.21.0
+go 1.18
 
 require (
 	github.com/go-redis/redismock/v9 v9.2.0
