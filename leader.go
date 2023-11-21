@@ -108,8 +108,8 @@ func (m *LeaderManager) obtainLock(ctx context.Context) (*Lock, error) {
 	if err != nil {
 		if m.OnError != nil {
 			m.OnError(m.Instance, err)
-			return lock, err
 		}
+		return lock, err
 	}
 	if m.OnElection != nil {
 		m.OnElection(m.Instance)

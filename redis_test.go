@@ -103,3 +103,20 @@ func TestItRenewsALock(t *testing.T) {
 		Expires:  now().Add(time.Second * 15),
 	})
 }
+
+func TestItErrorsWhenObtainingLockThatExists(t *testing.T) {
+	now = func() time.Time {
+		fakeTime, _ := time.Parse(time.RFC3339, "2023-11-21T15:04:05Z")
+		return fakeTime
+	}
+	client, mock := redismock.NewClientMock()
+	mock.ExpectSetNX("leader-leader", &Lock{
+		Instance: "bongo",
+		Expires:  now().Add(time.Second * 15),
+	}, time.Second*15).SetVal(false)
+
+	redis := NewRedisLocker(client)
+
+	_, err := redis.ObtainLock(context.Background(), "leader", "bongo")
+	assert.ErrorIs(t, err, ErrLockExists)
+}
