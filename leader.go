@@ -78,22 +78,17 @@ func (m *LeaderManager) AttemptLock(ctx context.Context) (*Lock, error) {
 		return nil, err
 	}
 
+	if lock.Instance == m.Instance {
+		if m.OnRenewal != nil {
+			m.OnRenewal(m.Instance)
+		}
+		return m.Locker.RenewLock(ctx, m.Instance)
+	}
+
 	if lock.IsValid() {
 		return lock, ErrLockExists
 	}
-
-	if !lock.IsValid() {
-		if lock.Instance == m.Instance {
-			if m.OnRenewal != nil {
-				m.OnRenewal(m.Instance)
-			}
-			return m.Locker.RenewLock(ctx, m.Instance)
-		}
-
-		return m.obtainLock(ctx)
-	}
-
-	return lock, ErrDidntObtain
+	return m.obtainLock(ctx)
 }
 
 func (m *LeaderManager) obtainLock(ctx context.Context) (*Lock, error) {
