@@ -29,7 +29,7 @@ func (r *RedisLocker) ObtainLock(ctx context.Context, name string, instance stri
 		return nil, res.Err()
 	}
 	if !res.Val() {
-		return lock, ErrLockExists
+		return nil, ErrLockExists
 	}
 	return lock, nil
 }
