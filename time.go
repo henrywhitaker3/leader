@@ -5,7 +5,7 @@ import "time"
 type NowFunc func() time.Time
 
 var (
-	now NowFunc = func() time.Time {
+	Now NowFunc = func() time.Time {
 		return time.Now()
 	}
 )
