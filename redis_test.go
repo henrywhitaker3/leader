@@ -31,7 +31,7 @@ func TestItSetsALockInRedisOnObtain(t *testing.T) {
 	}, time.Second*15).SetVal(true)
 
 	redis := NewRedisLocker(client)
-	lock, err := redis.ObtainLock(context.Background(), "leader", "bongo")
+	lock, err := redis.ObtainLock(context.Background(), "leader", "bongo", time.Second*15)
 	assert.NotNil(t, lock)
 	assert.Nil(t, err)
 }
@@ -64,7 +64,7 @@ func TestItErrorsWhenRenewingSomeoneElsesLock(t *testing.T) {
 
 	redis := NewRedisLocker(client)
 
-	_, err := redis.RenewLock(context.Background(), "leader", "bongo")
+	_, err := redis.RenewLock(context.Background(), "leader", "bongo", time.Second*15)
 	assert.ErrorIs(t, err, ErrRenewNotOurLock)
 }
 
@@ -78,7 +78,7 @@ func TestItErrorsWhenRenewingAMissingLock(t *testing.T) {
 
 	redis := NewRedisLocker(client)
 
-	_, err := redis.RenewLock(context.Background(), "leader", "bongo")
+	_, err := redis.RenewLock(context.Background(), "leader", "bongo", time.Second*15)
 	assert.ErrorIs(t, err, ErrNoLock)
 }
 
@@ -96,7 +96,7 @@ func TestItRenewsALock(t *testing.T) {
 
 	redis := NewRedisLocker(client)
 
-	lock, err := redis.RenewLock(context.Background(), "leader", "bongo")
+	lock, err := redis.RenewLock(context.Background(), "leader", "bongo", time.Second*15)
 	assert.Nil(t, err)
 	assert.Equal(t, lock, &Lock{
 		Instance: "bongo",
@@ -117,6 +117,6 @@ func TestItErrorsWhenObtainingLockThatExists(t *testing.T) {
 
 	redis := NewRedisLocker(client)
 
-	_, err := redis.ObtainLock(context.Background(), "leader", "bongo")
+	_, err := redis.ObtainLock(context.Background(), "leader", "bongo", time.Second*15)
 	assert.ErrorIs(t, err, ErrLockExists)
 }

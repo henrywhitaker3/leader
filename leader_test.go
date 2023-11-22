@@ -27,24 +27,26 @@ func TestItElectsALeaderWhenThereIsNoLock(t *testing.T) {
 	onOustingCalled := false
 	onErrorCalled := false
 
-	leader := &LeaderManager{
+	leader, _ := NewLeaderManager(&LeaderManagerConfig{
 		Name:     "bongo",
 		Instance: "1",
 		Locker:   NewRedisLocker(client),
 
-		OnElection: func(instance string) {
-			onElectionCalled = true
+		Callbacks: &Callbacks{
+			OnElection: func(instance string) {
+				onElectionCalled = true
+			},
+			OnRenewal: func(instance string) {
+				onRenewalCalled = true
+			},
+			OnOusting: func(instance string) {
+				onOustingCalled = true
+			},
+			OnError: func(instance string, err error) {
+				onErrorCalled = true
+			},
 		},
-		OnRenewal: func(instance string) {
-			onRenewalCalled = true
-		},
-		OnOusting: func(instance string) {
-			onOustingCalled = true
-		},
-		OnError: func(instance string, err error) {
-			onErrorCalled = true
-		},
-	}
+	})
 
 	leader.run(context.Background())
 
@@ -71,25 +73,27 @@ func TestItRenewsItsOwnLock(t *testing.T) {
 	onOustingCalled := false
 	onErrorCalled := false
 
-	leader := &LeaderManager{
+	leader, _ := NewLeaderManager(&LeaderManagerConfig{
 		Name:     "bongo",
 		Instance: "1",
 		Locker:   NewRedisLocker(client),
 
-		OnElection: func(instance string) {
-			onElectionCalled = true
+		Callbacks: &Callbacks{
+			OnElection: func(instance string) {
+				onElectionCalled = true
+			},
+			OnRenewal: func(instance string) {
+				onRenewalCalled = true
+			},
+			OnOusting: func(instance string) {
+				onOustingCalled = true
+			},
+			OnError: func(instance string, err error) {
+				fmt.Println(err)
+				onErrorCalled = true
+			},
 		},
-		OnRenewal: func(instance string) {
-			onRenewalCalled = true
-		},
-		OnOusting: func(instance string) {
-			onOustingCalled = true
-		},
-		OnError: func(instance string, err error) {
-			fmt.Println(err)
-			onErrorCalled = true
-		},
-	}
+	})
 
 	leader.run(context.Background())
 
@@ -130,25 +134,27 @@ func TestItCallsOnOustedWhenAnotherInstanceTakesOverTheLock(t *testing.T) {
 	onOustingCalled := false
 	onErrorCalled := false
 
-	leader := &LeaderManager{
+	leader, _ := NewLeaderManager(&LeaderManagerConfig{
 		Name:     "bongo",
 		Instance: "1",
 		Locker:   NewRedisLocker(client),
 
-		OnElection: func(instance string) {
-			onElectionCalled = true
+		Callbacks: &Callbacks{
+			OnElection: func(instance string) {
+				onElectionCalled = true
+			},
+			OnRenewal: func(instance string) {
+				onRenewalCalled = true
+			},
+			OnOusting: func(instance string) {
+				onOustingCalled = true
+			},
+			OnError: func(instance string, err error) {
+				fmt.Println(err)
+				onErrorCalled = true
+			},
 		},
-		OnRenewal: func(instance string) {
-			onRenewalCalled = true
-		},
-		OnOusting: func(instance string) {
-			onOustingCalled = true
-		},
-		OnError: func(instance string, err error) {
-			fmt.Println(err)
-			onErrorCalled = true
-		},
-	}
+	})
 
 	leader.run(context.Background())
 
@@ -180,25 +186,27 @@ func TestItTakesOverTheLockWhenTheCurrentLockHasExpired(t *testing.T) {
 	onOustingCalled := false
 	onErrorCalled := false
 
-	leader := &LeaderManager{
+	leader, _ := NewLeaderManager(&LeaderManagerConfig{
 		Name:     "bongo",
 		Instance: "1",
 		Locker:   NewRedisLocker(client),
 
-		OnElection: func(instance string) {
-			onElectionCalled = true
+		Callbacks: &Callbacks{
+			OnElection: func(instance string) {
+				onElectionCalled = true
+			},
+			OnRenewal: func(instance string) {
+				onRenewalCalled = true
+			},
+			OnOusting: func(instance string) {
+				onOustingCalled = true
+			},
+			OnError: func(instance string, err error) {
+				fmt.Println(err)
+				onErrorCalled = true
+			},
 		},
-		OnRenewal: func(instance string) {
-			onRenewalCalled = true
-		},
-		OnOusting: func(instance string) {
-			onOustingCalled = true
-		},
-		OnError: func(instance string, err error) {
-			fmt.Println(err)
-			onErrorCalled = true
-		},
-	}
+	})
 
 	mock.ExpectGet("bongo-leader").SetVal(`{"Instance":"2","Expires":"2023-11-21T15:03:00Z"}`)
 	mock.ExpectDel("bongo-leader").SetVal(1)
@@ -224,14 +232,16 @@ func TestItSetsIsLeaderCorrectlyAfterRun(t *testing.T) {
 
 	mock.ExpectGet("bongo-leader").SetVal(`{"Instance":"2","Expires":"2023-11-21T15:06:00Z"}`)
 
-	leader := &LeaderManager{
+	leader, _ := NewLeaderManager(&LeaderManagerConfig{
 		Name:     "bongo",
 		Instance: "1",
 		Locker:   NewRedisLocker(client),
-		OnError: func(instance string, err error) {
-			fmt.Println(err)
+		Callbacks: &Callbacks{
+			OnError: func(instance string, err error) {
+				fmt.Println(err)
+			},
 		},
-	}
+	})
 
 	leader.run(context.Background())
 
@@ -256,11 +266,11 @@ func TestItBehavesCorrectlyWhenSettingNXThatExists(t *testing.T) {
 	}
 	client, mock := redismock.NewClientMock()
 
-	leader := &LeaderManager{
+	leader, _ := NewLeaderManager(&LeaderManagerConfig{
 		Name:     "bongo",
 		Instance: "1",
 		Locker:   NewRedisLocker(client),
-	}
+	})
 
 	mock.ExpectSetNX("bongo-leader", &Lock{
 		Instance: "1",

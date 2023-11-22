@@ -22,9 +22,9 @@ func NewRedisLocker(redis *redis.Client) *RedisLocker {
 	}
 }
 
-func (r *RedisLocker) ObtainLock(ctx context.Context, name string, instance string) (*Lock, error) {
+func (r *RedisLocker) ObtainLock(ctx context.Context, name string, instance string, expiry time.Duration) (*Lock, error) {
 	lock := NewLock(instance)
-	res := r.Redis.SetNX(ctx, r.getKey(name), lock, time.Second*15)
+	res := r.Redis.SetNX(ctx, r.getKey(name), lock, expiry)
 	if res.Err() != nil {
 		return nil, res.Err()
 	}
@@ -34,7 +34,7 @@ func (r *RedisLocker) ObtainLock(ctx context.Context, name string, instance stri
 	return lock, nil
 }
 
-func (r *RedisLocker) RenewLock(ctx context.Context, name string, instance string) (*Lock, error) {
+func (r *RedisLocker) RenewLock(ctx context.Context, name string, instance string, expiry time.Duration) (*Lock, error) {
 	lock, err := r.GetLock(ctx, name)
 	if err != nil {
 		return nil, err
@@ -43,7 +43,7 @@ func (r *RedisLocker) RenewLock(ctx context.Context, name string, instance strin
 		return nil, ErrRenewNotOurLock
 	}
 	lock = NewLock(instance)
-	if res := r.Redis.Set(ctx, r.getKey(name), lock, time.Second*15); res.Err() != nil {
+	if res := r.Redis.Set(ctx, r.getKey(name), lock, expiry); res.Err() != nil {
 		return nil, res.Err()
 	}
 	return lock, nil
