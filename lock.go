@@ -13,13 +13,13 @@ type Lock struct {
 func NewLock(instance string) *Lock {
 	return &Lock{
 		Instance: instance,
-		Expires:  now().Add(time.Second * 15),
+		Expires:  Now().Add(time.Second * 15),
 	}
 }
 
 // Determines if the lock has already expired
 func (l *Lock) IsValid() bool {
-	return now().Before(l.Expires)
+	return Now().Before(l.Expires)
 }
 
 func (l Lock) MarshalBinary() ([]byte, error) {

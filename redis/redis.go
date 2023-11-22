@@ -1,15 +1,16 @@
-package leader
+package redis
 
 import (
 	"context"
 	"fmt"
 	"time"
 
+	"github.com/henrywhitaker3/leader"
 	"github.com/redis/go-redis/v9"
 )
 
 var (
-	_ Locker = &RedisLocker{}
+	_ leader.Locker = &RedisLocker{}
 )
 
 type RedisLocker struct {
@@ -22,39 +23,39 @@ func NewRedisLocker(redis *redis.Client) *RedisLocker {
 	}
 }
 
-func (r *RedisLocker) ObtainLock(ctx context.Context, name string, instance string, expiry time.Duration) (*Lock, error) {
-	lock := NewLock(instance)
+func (r *RedisLocker) ObtainLock(ctx context.Context, name string, instance string, expiry time.Duration) (*leader.Lock, error) {
+	lock := leader.NewLock(instance)
 	res := r.Redis.SetNX(ctx, r.getKey(name), lock, expiry)
 	if res.Err() != nil {
 		return nil, res.Err()
 	}
 	if !res.Val() {
-		return nil, ErrLockExists
+		return nil, leader.ErrLockExists
 	}
 	return lock, nil
 }
 
-func (r *RedisLocker) RenewLock(ctx context.Context, name string, instance string, expiry time.Duration) (*Lock, error) {
+func (r *RedisLocker) RenewLock(ctx context.Context, name string, instance string, expiry time.Duration) (*leader.Lock, error) {
 	lock, err := r.GetLock(ctx, name)
 	if err != nil {
 		return nil, err
 	}
 	if lock.Instance != instance {
-		return nil, ErrRenewNotOurLock
+		return nil, leader.ErrRenewNotOurLock
 	}
-	lock = NewLock(instance)
+	lock = leader.NewLock(instance)
 	if res := r.Redis.Set(ctx, r.getKey(name), lock, expiry); res.Err() != nil {
 		return nil, res.Err()
 	}
 	return lock, nil
 }
 
-func (r *RedisLocker) GetLock(ctx context.Context, name string) (*Lock, error) {
+func (r *RedisLocker) GetLock(ctx context.Context, name string) (*leader.Lock, error) {
 	out := r.Redis.Get(ctx, r.getKey(name))
 	if out.Err() == redis.Nil {
-		return nil, ErrNoLock
+		return nil, leader.ErrNoLock
 	}
-	lock := &Lock{}
+	lock := &leader.Lock{}
 	if err := out.Scan(lock); err != nil {
 		return nil, err
 	}
@@ -70,6 +71,7 @@ func (r *RedisLocker) ReleaseLock(ctx context.Context, name string, instance str
 		// The lock is not ours, do nothing
 		return nil
 	}
+	// TODO: clean this up
 	if out := r.Redis.Del(ctx, r.getKey(name)); out.Err() != nil {
 		return err
 	}
