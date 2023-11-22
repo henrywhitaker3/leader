@@ -71,11 +71,7 @@ func (r *RedisLocker) ReleaseLock(ctx context.Context, name string, instance str
 		// The lock is not ours, do nothing
 		return nil
 	}
-	// TODO: clean this up
-	if out := r.Redis.Del(ctx, r.getKey(name)); out.Err() != nil {
-		return err
-	}
-	return nil
+	return r.ClearLock(ctx, name)
 }
 
 func (r *RedisLocker) ClearLock(ctx context.Context, name string) error {
